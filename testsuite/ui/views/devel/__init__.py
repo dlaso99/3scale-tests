@@ -1,4 +1,5 @@
 """Contains basic views for Developer portal"""
+import backoff
 from widgetastic.widget import View, Text, TextInput, GenericLocatorWidget
 
 from testsuite.ui.navigation import Navigable, step
@@ -72,6 +73,22 @@ class LandingView(BaseDevelView):
         super().post_navigate(**kwargs)
         if self.close_csm.is_displayed:
             self.close_csm.click()
+
+    @property
+    def tenant_ready(self) -> bool:
+        """
+            helping function that determines whether the page is up
+            (for example -> for tenant testing)
+        """
+        self.browser.refresh()
+        return self.is_displayed
+
+    @backoff.on_predicate(backoff.fibo, lambda ready: not ready, max_tries=8, jitter=None)
+    def wait_page_ready(self):
+        """
+            function that waits for a while for tenant to get ready
+        """
+        return self.tenant_ready
 
 
 class AccessView(View):

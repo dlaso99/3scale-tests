@@ -21,6 +21,8 @@ from testsuite.ui.views.admin.login import LoginView
 from testsuite.ui.views.admin.product.application import ApplicationPlanNewView
 from testsuite.ui.views.admin.product.product import ProductNewView
 from testsuite.ui.views.devel.login import LoginDevelView
+from testsuite.ui.views.master.audience.tenant import TenantNewView
+from testsuite.ui.views.master.login import MasterLoginView
 from testsuite.ui.webdriver import SeleniumDriver
 from testsuite.utils import blame
 
@@ -87,6 +89,41 @@ def login(custom_admin_login):
 
 
 @pytest.fixture(scope="module")
+def custom_master_login(browser, sessions, navigator):
+    """
+    Login fixture for master portal.
+    :param browser: Browser instance
+    :param sessions: Dict-like instance that contains all available browserSessions that were used within scope=session
+    :param navigator: Navigator Instance
+    :return: Login to Master portal with custom credentials
+    """
+
+    def _login(name=None, password=None):
+        url = settings["threescale"]["master"]["url"]
+        name = name or settings["threescale"]["master"]["username"]
+        password = password or settings["threescale"]["master"]["password"]
+        browser.url = url
+
+        if not sessions.restore(name, password, url):
+            page = navigator.open(MasterLoginView)
+            page.do_login(name, password)
+            cookies = [browser.selenium.get_cookie('user_session')]
+            sessions.save(name, password, url, values=cookies)
+
+    return _login
+
+
+@pytest.fixture
+def master_login(custom_master_login):
+    """
+    Login to the Master portal with default admin credentials
+    :param custom_master_login: Parametrized login method
+    :return: Login with default credentials
+    """
+    return custom_master_login()
+
+
+@pytest.fixture(scope="module")
 def custom_devel_login(browser, sessions, navigator, provider_account, account_password):
     """
     Login to Developer portal with specific account or credentials
@@ -139,6 +176,30 @@ def navigator(browser):
     ]
     navigator = Navigator(browser, base_views)
     return navigator
+
+
+# pylint: disable=unused-argument, too-many-arguments
+@pytest.fixture(scope="module")
+def custom_ui_tenant(custom_master_login, navigator, threescale, testconfig, request, master_threescale):
+    """Parametrized custom Backend created via UI"""
+
+    def _custom_ui_tenant(username: str, system_name: str, password: str = "", organisation: str = "", autoclean=True):
+        custom_master_login()
+        tenant = navigator.navigate(TenantNewView)
+        tenant.create(username, email=system_name + "@anything.invalid", password=password, organization=organisation)
+        tenant = master_threescale.accounts.read_by_name(organisation)
+        if autoclean and not testconfig["skip_cleanup"]:
+            request.addfinalizer(tenant.delete)
+        return tenant
+
+    return _custom_ui_tenant
+
+
+@pytest.fixture(scope="module")
+def ui_tenant(custom_ui_tenant, request):
+    """Preconfigured backend existing over whole testing session"""
+    name = blame(request, "ui_tenant")
+    return custom_ui_tenant(name, name)
 
 
 # pylint: disable=unused-argument, too-many-arguments
