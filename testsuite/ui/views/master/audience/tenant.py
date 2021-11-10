@@ -59,6 +59,7 @@ class TenantDetailView(BaseMasterAudienceView):
         self.edit_button.click()
 
     def suspend_or_resume(self):
+        """suspend / resume button click function that also handles alert"""
         self.suspend_button.click(handle_alert=True)
 
     def open_public_domain(self):
