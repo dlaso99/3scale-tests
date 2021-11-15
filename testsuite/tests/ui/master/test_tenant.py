@@ -22,7 +22,7 @@ def check_is_displayed_in_new_tab(browser, new_tab_opener, View, wait=False):
         assert view.is_displayed
 
 
-def test_create_tenant(custom_ui_tenant, request, navigator, browser):
+def test_create_tenant(custom_ui_tenant, request, navigator, browser, master_threescale):
     """
     Test:
         - Creates tenant via UI
@@ -31,7 +31,9 @@ def test_create_tenant(custom_ui_tenant, request, navigator, browser):
     username = blame(request, "name")
     email_begin = blame(request, "email")     # [email_begin]@email.com     <- generates only [] part.
     org_name = blame(request, "org-name")
-    account = custom_ui_tenant(username, email_begin, "description", org_name)
+    tenant = custom_ui_tenant(username, email_begin, "description", org_name)
+    account_id = tenant.entity['signup']['account']['id']
+    account = master_threescale.accounts.read(account_id)
 
     assert account.entity_name == org_name
 

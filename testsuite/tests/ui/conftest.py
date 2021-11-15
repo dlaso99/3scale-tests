@@ -181,15 +181,16 @@ def navigator(browser):
 # pylint: disable=unused-argument, too-many-arguments
 @pytest.fixture(scope="module")
 def custom_ui_tenant(custom_master_login, navigator, threescale, testconfig, request, master_threescale):
-    """Parametrized custom Backend created via UI"""
+    """Parametrized custom Tenant created via UI"""
 
     def _custom_ui_tenant(username: str, system_name: str, password: str = "", organisation: str = "", autoclean=True):
         custom_master_login()
         tenant = navigator.navigate(TenantNewView)
         tenant.create(username, email=system_name + "@anything.invalid", password=password, organization=organisation)
-        tenant = master_threescale.accounts.read_by_name(organisation)
+        account = master_threescale.accounts.read_by_name(organisation)
+        tenant = master_threescale.tenants.read(account.entity_id)
         if autoclean and not testconfig["skip_cleanup"]:
-            request.addfinalizer(tenant.delete)
+            request.addfinalizer(account.delete)
         return tenant
 
     return _custom_ui_tenant
@@ -197,7 +198,7 @@ def custom_ui_tenant(custom_master_login, navigator, threescale, testconfig, req
 
 @pytest.fixture(scope="module")
 def ui_tenant(custom_ui_tenant, request):
-    """Preconfigured backend existing over whole testing session"""
+    """Preconfigured tenant existing over whole testing session"""
     name = blame(request, "ui_tenant")
     return custom_ui_tenant(name, name)
 
